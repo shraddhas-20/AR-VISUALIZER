@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Aura AR - Futuristic Hand Tracking</title>
+    
+    <!-- Google Fonts: Orbitron (Futuristic) & Inter (UI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Orbitron:wght@400;600;900&display=swap" rel="stylesheet">
+
+    <!-- MediaPipe Hands CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <!-- Start Overlay (Required for AudioContext initialization) -->
+    <div id="startOverlay">
+        <div class="overlay-content">
+            <h1 class="glow-text">NEON AURA AR</h1>
+            <p class="subtitle">An Interactive Cybernetic Hand Tracking Experience</p>
+            <div class="instructions">
+                <div class="inst-item">
+                    <span class="inst-icon">📷</span>
+                    <span>Grant webcam access to stream video</span>
+                </div>
+                <div class="inst-item">
+                    <span class="inst-icon">🔊</span>
+                    <span>Sound triggers on interaction (Pinch & Spreading)</span>
+                </div>
+                <div class="inst-item">
+                    <span class="inst-icon">⚡</span>
+                    <span>Connect two hands for electric discharge arcs</span>
+                </div>
+            </div>
+            <button class="start-btn" id="startBtn">Enter Experience</button>
+        </div>
+    </div>
+
+    <!-- Main AR Video & Canvas Layer -->
+    <div class="video-container">
+        <video class="input_video" autoplay playsinline></video>
+        <canvas id="bgCanvas"></canvas>
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <!-- UI Overlay (HUD) -->
+    <div id="hud" class="hidden">
+        <!-- Dashboard Top Panel -->
+        <div class="panel telemetry-panel">
+            <div class="panel-header">SYSTEM TELEMETRY</div>
+            <div class="stat">Hands Detected: <span class="val" id="ui-hands">0</span></div>
+            <div class="stat">FPS: <span class="val" id="ui-fps">0</span></div>
+        </div>
+        
+        <!-- Gesture Status Panel -->
+        <div class="panel gesture-panel">
+            <div class="panel-header">POSE INTERACTION</div>
+            <div class="stat">Active Gesture: <span class="val glow-accent" id="ui-gesture">None</span></div>
+            <div class="stat">Finger Spread: <span class="val" id="ui-spread">0%</span></div>
+        </div>
+
+        <!-- Settings Toggle Button (Top Right HUD) -->
+        <button id="settingsToggle" class="hud-btn" aria-label="Toggle Settings">
+            <svg class="gear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Theme Controller (Bottom Center HUD) -->
+    <div id="themes" class="hidden">
+        <button class="theme-btn active" data-theme="Rainbow">Rainbow</button>
+        <button class="theme-btn" data-theme="Cyberpunk">Cyberpunk</button>
+        <button class="theme-btn" data-theme="Lava">Lava</button>
+        <button class="theme-btn" data-theme="Ocean">Ocean</button>
+        <button class="theme-btn" data-theme="Galaxy">Galaxy</button>
+    </div>
+
+    <!-- Slide-out Settings Drawer -->
+    <div id="settingsDrawer" class="drawer-closed">
+        <div class="drawer-header">
+            <h2>CYBER CONTROLS</h2>
+            <button id="closeDrawer" class="close-btn">&times;</button>
+        </div>
+        <div class="drawer-content">
+            <div class="control-group">
+                <label for="cameraSelect">Webcam Source</label>
+                <select id="cameraSelect">
+                    <option value="user">Front Camera (User)</option>
+                    <option value="environment">Back Camera (Environment)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="bgModeSelect">Background Aura Effect</label>
+                <select id="bgModeSelect">
+                    <option value="matrix">Matrix Data Rain</option>
+                    <option value="starfield">Cosmic Starfield</option>
+                    <option value="none">None (Raw Camera)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="volumeSlider">Master Feedback Volume: <span id="volVal">40%</span></label>
+                <input type="range" id="volumeSlider" min="0" max="100" value="40">
+            </div>
+
+            <div class="control-group">
+                <label for="particleSlider">Fingertip Particle Flow: <span id="partVal">60%</span></label>
+                <input type="range" id="particleSlider" min="0" max="100" value="60">
+            </div>
+
+            <div class="control-group">
+                <label for="lightningSlider">Lightning Sensitivity (px): <span id="lightVal">180</span></label>
+                <input type="range" id="lightningSlider" min="80" max="350" value="180">
+            </div>
+            
+            <div class="control-group">
+                <label for="blurSlider">Motion Trail Intensity: <span id="blurVal">30%</span></label>
+                <input type="range" id="blurSlider" min="5" max="80" value="30">
+            </div>
+        </div>
+        <div class="drawer-footer">
+            <span class="build-version">v1.2.0 - Neon Aura Engine</span>
+        </div>
+    </div>
+
+    <!-- App Logic Script Entry -->
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
